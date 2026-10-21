@@ -1,0 +1,31 @@
+name: build-apk
+on: workflow_dispatch
+jobs:
+  apk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev libltdl-dev
+          python3 -m pip install --upgrade pip
+          python3 -m pip install buildozer cython
+      - name: prepare
+        run: |
+          mv "上传到GitHub" src
+          cd src/android
+          cp ../极光助手.py jg_core.py
+          cp ../skill_db.py ../npc_db.py ../npc_class.py .
+          cp ../物品名.txt ../刷阵宝箱ID.txt ../技能格子.json .
+          cp -r ../技能图标 .
+          ls -la
+      - name: build
+        run: |
+          cd src/android
+          yes | buildozer -v android debug 2>&1 | tail -120
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jiguang-apk
+          path: src/android/bin/*.apk
