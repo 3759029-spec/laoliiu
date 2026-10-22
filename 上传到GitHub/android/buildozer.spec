@@ -15,7 +15,7 @@ source.exclude_dirs = bin, .git, __pycache__, .buildozer, tests
 version = 6.2
 
 # 只依赖 kivy；协议层是纯标准库（socket/struct/threading/queue/json）
-requirements = python3,kivy,charset-normalizer==2.1.1
+requirements = python3,charset-normalizer==2.1.1,requests==2.28.2,kivy
 
 orientation = portrait
 fullscreen = 0
