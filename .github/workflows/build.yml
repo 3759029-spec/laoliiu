@@ -3,15 +3,16 @@ on: workflow_dispatch
 jobs:
   apk:
     runs-on: ubuntu-22.04
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - name: deps
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev libltdl-dev
-          python3 -m pip install --upgrade pip
-          python3 -m pip install buildozer cython
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user buildozer cython
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: prepare
         run: |
           mv "上传到GitHub" src
@@ -20,12 +21,34 @@ jobs:
           cp ../skill_db.py ../npc_db.py ../npc_class.py .
           cp ../物品名.txt ../刷阵宝箱ID.txt ../技能格子.json .
           cp -r ../技能图标 .
+          sed -i 's|^android.archs.*|android.archs = arm64-v8a|' buildozer.spec
+          sed -i '/^\[buildozer\]/i android.ndk = 25b' buildozer.spec
+          sed -i '/^\[buildozer\]/i p4a.branch = master' buildozer.spec
+          echo "---- buildozer.spec 关键项 ----"
+          grep -E "^(android|p4a)\." buildozer.spec
+          echo "---- 目录 ----"
           ls -la
       - name: build
+        shell: bash
         run: |
           cd src/android
-          yes | buildozer -v android debug 2>&1 | tail -120
+          set +e
+          yes 2>/dev/null | buildozer -v android debug > "$HOME/build.log" 2>&1
+          rc=$?
+          set -e
+          echo "======== buildozer exit code: $rc ========"
+          echo "======== 错误关键行 ========"
+          grep -n -iE "error|traceback|failed|not found|unsupported|no such file" "$HOME/build.log" | tail -50 || true
+          echo "======== 日志最后 60 行 ========"
+          tail -60 "$HOME/build.log" || true
+          echo "======== bin 目录 ========"
+          ls -la bin 2>/dev/null || echo "(no bin dir)"
+          if ! ls bin/*.apk >/dev/null 2>&1; then
+            echo "::error::no apk produced (buildozer rc=$rc)"
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: jiguang-apk
           path: src/android/bin/*.apk
+          if-no-files-found: error
